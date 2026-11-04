@@ -1,0 +1,549 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Futsal Live Scout</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Condensed:wght@600;700;800&display=swap">
+<style>
+  /* Layout: placar fixo no topo, duas colunas de equipe lado a lado (também no celular), reset no rodapé. */
+  :root {
+    --bg: #121212;
+    --surface: #1e1e1e;
+    --surface-2: #2a2a2a;
+    --fg: #f5f5f2;
+    --muted: #b9b9b4;
+    --line: #3a3a3a;
+    --track: #333333;
+    --gold: #ffcc00;
+    --team-a: #4da6ff;
+    --team-b: #ff6666;
+    --good: #28a745;
+    --good-edge: #34d058;
+    --minus: #dc3545;
+    --plus: #007bff;
+    --on-fill: #ffffff;
+    --font-display: "Barlow Condensed", "Arial Narrow", Arial, sans-serif;
+    --font-body: "Barlow", system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+    color-scheme: dark;
+  }
+  @media (prefers-color-scheme: light) {
+    :root:not([data-theme="dark"]) {
+      --bg: #f1f1ed;
+      --surface: #ffffff;
+      --surface-2: #ebebe6;
+      --fg: #17171a;
+      --muted: #5a5a60;
+      --line: #d4d4cd;
+      --track: #dcdcd5;
+      --gold: #8f6c00;
+      --team-a: #0b62c4;
+      --team-b: #c42b2b;
+      --good: #1e7b34;
+      --good-edge: #166128;
+      --minus: #c62535;
+      --plus: #0b62c4;
+      --on-fill: #ffffff;
+      color-scheme: light;
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f1f1ed;
+    --surface: #ffffff;
+    --surface-2: #ebebe6;
+    --fg: #17171a;
+    --muted: #5a5a60;
+    --line: #d4d4cd;
+    --track: #dcdcd5;
+    --gold: #8f6c00;
+    --team-a: #0b62c4;
+    --team-b: #c42b2b;
+    --good: #1e7b34;
+    --good-edge: #166128;
+    --minus: #c62535;
+    --plus: #0b62c4;
+    --on-fill: #ffffff;
+    color-scheme: light;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-body);
+    font-size: 16px;
+    padding-block: 16px 32px;
+    padding-left: max(16px, env(safe-area-inset-left, 0px));
+    padding-right: max(16px, env(safe-area-inset-right, 0px));
+  }
+  .app {
+    max-width: 680px;
+    margin: 0 auto;
+    display: grid;
+    gap: 14px;
+  }
+  h1 {
+    margin: 0;
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 1.6rem;
+    letter-spacing: 0.08em;
+    text-align: center;
+    color: var(--gold);
+    text-wrap: balance;
+  }
+  button { font-family: inherit; }
+  button:focus-visible, input:focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+  }
+
+  /* Placar */
+  .board {
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 14px 12px 12px;
+    display: grid;
+    gap: 12px;
+  }
+  .score {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    align-items: center;
+    gap: 8px;
+  }
+  .score-side { min-width: 0; text-align: center; display: grid; gap: 2px; }
+  .score-num {
+    font-family: var(--font-display);
+    font-weight: 800;
+    font-size: 3.6rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .score-name {
+    font-size: 0.8rem;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .score-sep {
+    font-family: var(--font-display);
+    font-size: 2rem;
+    color: var(--muted);
+  }
+  .a-color { color: var(--team-a); }
+  .b-color { color: var(--team-b); }
+
+  .poss { display: grid; gap: 6px; }
+  .poss-labels {
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    font-size: 0.8rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  .poss-labels b { font-weight: 600; }
+  .poss-bar {
+    display: flex;
+    height: 10px;
+    border-radius: 5px;
+    overflow: hidden;
+    background: var(--track);
+  }
+  .poss-bar span { display: block; height: 100%; }
+  .poss-a { background: var(--team-a); }
+  .poss-b { background: var(--team-b); }
+  @media (prefers-reduced-motion: no-preference) {
+    .poss-bar span { transition: width 0.3s ease; }
+  }
+
+  /* Equipes */
+  .teams {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .team {
+    min-width: 0;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 10px;
+    display: grid;
+    gap: 10px;
+    align-content: start;
+  }
+  .team-name {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px dashed var(--line);
+    border-radius: 0;
+    padding: 2px 0 4px;
+    text-align: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.35rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+  .team-name.a-color { color: var(--team-a); }
+  .team-name.b-color { color: var(--team-b); }
+
+  .timer-btn {
+    min-height: 56px;
+    width: 100%;
+    background: var(--surface-2);
+    color: var(--fg);
+    border: 2px solid var(--line);
+    border-radius: 8px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.5rem;
+    letter-spacing: 0.04em;
+    font-variant-numeric: tabular-nums;
+    cursor: pointer;
+  }
+  .timer-btn.active {
+    background: var(--good);
+    border-color: var(--good-edge);
+    color: var(--on-fill);
+  }
+
+  .stat {
+    background: var(--surface-2);
+    border-radius: 8px;
+    padding: 8px;
+    display: grid;
+    gap: 6px;
+  }
+  .stat-label {
+    font-size: 0.8rem;
+    letter-spacing: 0.04em;
+    color: var(--muted);
+    text-align: center;
+  }
+  .stepper {
+    display: grid;
+    grid-template-columns: 44px minmax(0, 1fr) 44px;
+    align-items: center;
+    gap: 4px;
+  }
+  .stat-value {
+    text-align: center;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 1.9rem;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+  }
+  .step-btn {
+    min-height: 44px;
+    border: 0;
+    border-radius: 6px;
+    color: var(--on-fill);
+    font-size: 1.4rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .step-btn.minus { background: var(--minus); }
+  .step-btn.plus { background: var(--plus); }
+  .step-btn:active, .timer-btn:active { filter: brightness(0.9); }
+
+  /* Reset */
+  .footer { display: grid; justify-items: center; gap: 10px; }
+  .reset-btn {
+    background: var(--surface-2);
+    color: var(--fg);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    min-height: 44px;
+    padding: 0 20px;
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .confirm {
+    width: 100%;
+    box-sizing: border-box;
+    background: var(--surface);
+    border: 1px solid var(--minus);
+    border-radius: 12px;
+    padding: 12px;
+    display: grid;
+    gap: 10px;
+    text-align: center;
+  }
+  .confirm p { margin: 0; line-height: 1.4; }
+  .confirm-actions { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+  .confirm-actions button {
+    min-height: 44px;
+    padding: 0 18px;
+    border-radius: 8px;
+    border: 1px solid var(--line);
+    background: var(--surface-2);
+    color: var(--fg);
+    font-size: 1rem;
+    cursor: pointer;
+  }
+  .confirm-actions .danger {
+    background: var(--minus);
+    border-color: var(--minus);
+    color: var(--on-fill);
+    font-weight: 600;
+  }
+</style>
+
+<main class="app">
+  <h1>FUTSAL LIVE SCOUT</h1>
+
+  <section class="board" aria-label="Placar e posse de bola">
+    <div class="score">
+      <div class="score-side">
+        <div class="score-num a-color" id="scoreA">0</div>
+        <div class="score-name" id="scoreNameA">Time A</div>
+      </div>
+      <div class="score-sep" aria-hidden="true">×</div>
+      <div class="score-side">
+        <div class="score-num b-color" id="scoreB">0</div>
+        <div class="score-name" id="scoreNameB">Time B</div>
+      </div>
+    </div>
+    <div class="poss">
+      <div class="poss-labels">
+        <span class="a-color"><b id="possPctA">0%</b> posse</span>
+        <span class="b-color">posse <b id="possPctB">0%</b></span>
+      </div>
+      <div class="poss-bar" aria-hidden="true">
+        <span class="poss-a" id="possBarA" style="width:0%"></span>
+        <span class="poss-b" id="possBarB" style="width:0%"></span>
+      </div>
+    </div>
+  </section>
+
+  <section class="teams">
+    <div class="team" id="teamA"></div>
+    <div class="team" id="teamB"></div>
+  </section>
+
+  <div class="footer">
+    <button class="reset-btn" type="button" data-act="reset-ask" id="resetAsk">Zerar tudo</button>
+    <div class="confirm" id="confirmBox" hidden>
+      <p>Zerar todas as estatísticas e os cronômetros de posse? Os nomes dos times são mantidos.</p>
+      <div class="confirm-actions">
+        <button type="button" data-act="reset-cancel" id="resetCancel">Cancelar</button>
+        <button type="button" class="danger" data-act="reset-do" id="resetDo">Zerar tudo</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<script>
+  (function () {
+    var STATS = ['Gols', 'Chutes ao Gol', 'Defesas', 'Passes', 'Laterais', 'Escanteios'];
+    var KEY = 'futsal-live-scout-v1';
+    var TEAMS = ['A', 'B'];
+
+    function blankTeam(name) {
+      return { name: name, ms: 0, active: false, stats: STATS.map(function () { return 0; }) };
+    }
+    function blank() {
+      return { A: blankTeam('Time A'), B: blankTeam('Time B') };
+    }
+
+    function load() {
+      var s = blank();
+      try {
+        var raw = localStorage.getItem(KEY);
+        if (!raw) return s;
+        var saved = JSON.parse(raw);
+        TEAMS.forEach(function (t) {
+          var src = saved && saved[t];
+          if (!src) return;
+          if (typeof src.name === 'string') s[t].name = src.name.slice(0, 14);
+          if (typeof src.ms === 'number' && src.ms >= 0) s[t].ms = src.ms;
+          if (Array.isArray(src.stats)) {
+            STATS.forEach(function (_, i) {
+              var v = src.stats[i];
+              if (typeof v === 'number' && v >= 0) s[t].stats[i] = Math.floor(v);
+            });
+          }
+        });
+      } catch (e) {}
+      return s;
+    }
+
+    var state = load();
+    var lastSave = 0;
+    function save() {
+      try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+    }
+
+    function $(id) { return document.getElementById(id); }
+
+    function buildTeam(t) {
+      var color = t === 'A' ? 'a-color' : 'b-color';
+      var html = '' +
+        '<input class="team-name ' + color + '" id="name' + t + '" type="text" maxlength="14" ' +
+        'aria-label="Nome do time ' + t + '" value="">' +
+        '<button type="button" class="timer-btn" id="timer' + t + '" data-act="timer" data-team="' + t + '">Posse: 00:00</button>';
+      STATS.forEach(function (label, i) {
+        html += '' +
+          '<div class="stat">' +
+            '<div class="stat-label">' + label + '</div>' +
+            '<div class="stepper">' +
+              '<button type="button" class="step-btn minus" data-act="step" data-team="' + t + '" data-i="' + i + '" data-d="-1" aria-label="Diminuir ' + label + '">−</button>' +
+              '<div class="stat-value" id="val' + t + i + '">0</div>' +
+              '<button type="button" class="step-btn plus" data-act="step" data-team="' + t + '" data-i="' + i + '" data-d="1" aria-label="Aumentar ' + label + '">+</button>' +
+            '</div>' +
+          '</div>';
+      });
+      $('team' + t).innerHTML = html;
+      $('name' + t).value = state[t].name;
+    }
+
+    function formatTime(ms) {
+      var total = Math.floor(ms / 1000);
+      var m = Math.floor(total / 60);
+      var s = total % 60;
+      return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+    }
+
+    function renderTimers() {
+      var a = state.A.ms, b = state.B.ms, total = a + b;
+      var pa = total ? Math.round((a / total) * 100) : 0;
+      var pb = total ? 100 - pa : 0;
+      TEAMS.forEach(function (t) {
+        var btn = $('timer' + t);
+        btn.textContent = 'Posse: ' + formatTime(state[t].ms);
+        btn.classList.toggle('active', state[t].active);
+        btn.setAttribute('aria-pressed', state[t].active ? 'true' : 'false');
+      });
+      $('possPctA').textContent = pa + '%';
+      $('possPctB').textContent = pb + '%';
+      $('possBarA').style.width = pa + '%';
+      $('possBarB').style.width = pb + '%';
+    }
+
+    function renderStats() {
+      TEAMS.forEach(function (t) {
+        STATS.forEach(function (_, i) {
+          $('val' + t + i).textContent = state[t].stats[i];
+        });
+      });
+      $('scoreA').textContent = state.A.stats[0];
+      $('scoreB').textContent = state.B.stats[0];
+    }
+
+    function renderNames() {
+      $('scoreNameA').textContent = state.A.name || 'Time A';
+      $('scoreNameB').textContent = state.B.name || 'Time B';
+    }
+
+    function renderAll() {
+      renderNames();
+      renderStats();
+      renderTimers();
+    }
+
+    /* Cronômetro baseado no relógio do aparelho, para não perder tempo
+       quando a aba fica em segundo plano. */
+    var timerId = null;
+    var last = 0;
+
+    function accumulate() {
+      var now = Date.now();
+      var dt = now - last;
+      last = now;
+      if (dt < 0) dt = 0;
+      TEAMS.forEach(function (t) {
+        if (state[t].active) state[t].ms += dt;
+      });
+      return now;
+    }
+
+    function tick() {
+      var now = accumulate();
+      renderTimers();
+      if (now - lastSave > 2000) { save(); lastSave = now; }
+    }
+
+    function syncTicker() {
+      var any = state.A.active || state.B.active;
+      if (any && !timerId) {
+        last = Date.now();
+        timerId = setInterval(tick, 250);
+      } else if (!any && timerId) {
+        clearInterval(timerId);
+        timerId = null;
+      }
+    }
+
+    function toggleTimer(t) {
+      if (timerId) accumulate();
+      var other = t === 'A' ? 'B' : 'A';
+      if (state[t].active) {
+        state[t].active = false;
+      } else {
+        state[t].active = true;
+        state[other].active = false;
+      }
+      syncTicker();
+      renderTimers();
+      save();
+    }
+
+    function step(t, i, d) {
+      var v = state[t].stats[i] + d;
+      state[t].stats[i] = v < 0 ? 0 : v;
+      renderStats();
+      save();
+    }
+
+    function resetAll() {
+      if (timerId) { clearInterval(timerId); timerId = null; }
+      var names = { A: state.A.name, B: state.B.name };
+      state = blank();
+      state.A.name = names.A;
+      state.B.name = names.B;
+      renderAll();
+      save();
+    }
+
+    function showConfirm(show) {
+      $('confirmBox').hidden = !show;
+      $('resetAsk').hidden = show;
+      if (show) $('resetCancel').focus(); else $('resetAsk').focus();
+    }
+
+    document.addEventListener('click', function (e) {
+      var el = e.target.closest ? e.target.closest('[data-act]') : null;
+      if (!el) return;
+      var act = el.getAttribute('data-act');
+      if (act === 'timer') toggleTimer(el.getAttribute('data-team'));
+      else if (act === 'step') step(el.getAttribute('data-team'), +el.getAttribute('data-i'), +el.getAttribute('data-d'));
+      else if (act === 'reset-ask') showConfirm(true);
+      else if (act === 'reset-cancel') showConfirm(false);
+      else if (act === 'reset-do') { resetAll(); showConfirm(false); }
+    });
+
+    TEAMS.forEach(function (t) {
+      buildTeam(t);
+      $('name' + t).addEventListener('input', function (e) {
+        state[t].name = e.target.value.slice(0, 14);
+        renderNames();
+        save();
+      });
+    });
+
+    renderAll();
+  })();
+</script>
+
+</body></html>
